@@ -17,12 +17,28 @@ def mediapipe_detection(image, model):
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)  # COLOR COVERSION RGB 2 BGR
     return image, results
 
-def extract_keypoints(results):
-    pose = np.array([[res.x, res.y, res.z, res.visibility] for res in results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(33*4)
-    face = np.array([[res.x, res.y, res.z] for res in results.face_landmarks.landmark]).flatten() if results.face_landmarks else np.zeros(468*3)
-    lh = np.array([[res.x, res.y, res.z] for res in results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21*3)
-    rh = np.array([[res.x, res.y, res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3)
-    return np.concatenate([pose, face, lh, rh])
+
+def extract_keypoints(results, hand=True, pose=True, face=False):
+    pose_feature = np.array([[res.x, res.y, res.z, res.visibility] for res in
+                             results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(33 * 4)
+    face_feature = np.array([[res.x, res.y, res.z] for res in
+                             results.face_landmarks.landmark]).flatten() if results.face_landmarks else np.zeros(
+        468 * 3)
+    lh = np.array([[res.x, res.y, res.z] for res in
+                   results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21 * 3)
+    rh = np.array([[res.x, res.y, res.z] for res in
+                   results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(
+        21 * 3)
+
+    keypoints_array = []
+    if pose:
+        keypoints_array.append(pose_feature)
+    if face:
+        keypoints_array.append(face_feature)
+    if hand:
+        keypoints_array.append(lh)
+        keypoints_array.append(rh)
+    return np.concatenate(keypoints_array)
 
 
 def draw_styled_landmarks(image, results, hand=True, pose=True, face=False):
@@ -31,7 +47,7 @@ def draw_styled_landmarks(image, results, hand=True, pose=True, face=False):
         mp_drawing.draw_landmarks(image, results.face_landmarks, mp_holistic.FACEMESH_TESSELATION,
                                   mp_drawing.DrawingSpec(color=(80, 110, 10), thickness=1, circle_radius=1),
                                   mp_drawing.DrawingSpec(color=(80, 256, 121), thickness=1, circle_radius=1)
-                              )
+                                  )
     # Draw pose connections
     if pose:
         mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS,
@@ -52,24 +68,56 @@ def draw_styled_landmarks(image, results, hand=True, pose=True, face=False):
 
 
 if __name__ == '__main__':
-    cap = cv2.VideoCapture(os.path.join(dir, vid))
-    landmarks = []
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        while cap.isOpened():
-            # Read feed
-            success, frame = cap.read()
-            if not success:
-                break
+    vid_dir = '../dataset/lsa64_raw/video'
+    for i, vid in enumerate(os.listdir(vid_dir)):
+        print(i)
+        cap = cv2.VideoCapture(os.path.join(vid_dir, vid))
+        frame_list = []
+        landmark1 = []
+        landmark2 = []
+        with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+            while cap.isOpened():
+                # Read feed
+                success, OriginalFrame = cap.read()
+                if not success:
+                    break
 
-            # Make detections
-            image, results = mediapipe_detection(frame, holistic)
-            cv2.imshow("main", cv2.flip(image, 1))
 
-            landmark = extract_keypoints(results)
-            landmarks.append(landmark)
-            # Draw landmarks
-            draw_styled_landmarks(image, results)
+                while success:
+                    frame_list.append(OriginalFrame)
+                    success, OriginalFrame = cap.read()
+            cap.release()
 
-            if cv2.waitKey(5) & 0xFF == 27:
-                break
-        cap.release()
+            for frame_num, OriginalFrame in enumerate(frame_list):
+                FlippedFrame = cv2.flip(OriginalFrame, 1)
+                OriginalFrame, result1 = mediapipe_detection(OriginalFrame, holistic)
+                FlippedFrame, result2 = mediapipe_detection(FlippedFrame, holistic)
+
+                OriginalFrameFeature = extract_keypoints(result1)
+                FlippedFrameFeature = extract_keypoints(result2)
+                landmark1.append(OriginalFrameFeature)
+                landmark2.append(FlippedFrameFeature)
+                # Draw landmarks
+                # draw_styled_landmarks(OriginalFrame, result1)
+                # draw_styled_landmarks(FlippedFrame, result2)
+                # cv2.putText(OriginalFrame, str(frame_num), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+                # cv2.putText(FlippedFrame, str(frame_num), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+                # cv2.imshow("original", OriginalFrame)
+                # cv2.imshow("flipped", FlippedFrame)
+
+                if cv2.waitKey(5) & 0xFF == 27:
+                    break
+
+        extracted_path = f"../dataset/lsa64_raw/extracted/{vid}.csv"
+        os.makedirs(os.path.dirname(extracted_path), exist_ok=True)
+        with open(extracted_path, "w+", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerows(landmark1)
+
+        extracted_path = f"../dataset/lsa64_raw/extracted/{vid}-flipped.csv"
+        os.makedirs(os.path.dirname(extracted_path), exist_ok=True)
+        with open(extracted_path, "w+", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerows(landmark2)
+
+
