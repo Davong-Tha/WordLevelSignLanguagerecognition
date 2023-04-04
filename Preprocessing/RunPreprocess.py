@@ -60,13 +60,13 @@ def preprocess(vids):
         processedVid.append(X.tolist())
 
     processedVid = np.array(processedVid)
-    for i in range(80):
-        # print(i)
-        scaler = StandardScaler()
-
-        temp1 = processedVid[:, :, i]
-        temp2 = scaler.fit_transform(np.reshape(temp1, (-1, 1)))
-        temp3 = np.reshape(temp2, (processedVid.shape[0], processedVid.shape[1]))
-        processedVid[:, :, i] = temp3
+    # for i in range(258):#what tf does 80 mean
+    #     # print(i)
+    #     scaler = StandardScaler()
+    #
+    #     temp1 = processedVid[:, :, i]
+    #     temp2 = scaler.fit_transform(np.reshape(temp1, (-1, 1)))
+    #     temp3 = np.reshape(temp2, (processedVid.shape[0], processedVid.shape[1]))
+    #     processedVid[:, :, i] = temp3
 
     return processedVid

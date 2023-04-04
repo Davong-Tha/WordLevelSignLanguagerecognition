@@ -70,11 +70,16 @@ def draw_styled_landmarks(image, results, hand=True, pose=True, face=False):
 if __name__ == '__main__':
     vid_dir = '../dataset/lsa64_raw/video'
     for i, vid in enumerate(os.listdir(vid_dir)):
-        print(i)
+        if i < 597:
+            continue
+        print(str(i) + ' ' +vid)
         cap = cv2.VideoCapture(os.path.join(vid_dir, vid))
         frame_list = []
         landmark1 = []
         landmark2 = []
+        # result = cv2.VideoWriter(f'example{i}.avi',
+        #                          cv2.VideoWriter_fourcc(*'MJPG'),
+        #                          10, (int(cap.get(3)), int(cap.get(4))))
         with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
             while cap.isOpened():
                 # Read feed
@@ -100,14 +105,16 @@ if __name__ == '__main__':
                 # Draw landmarks
                 # draw_styled_landmarks(OriginalFrame, result1)
                 # draw_styled_landmarks(FlippedFrame, result2)
-                # cv2.putText(OriginalFrame, str(frame_num), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+                # cv2.putText(OriginalFrame, 'frame: '+str(frame_num), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (36, 255, 12), 5)
                 # cv2.putText(FlippedFrame, str(frame_num), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+                # result.write(OriginalFrame)
                 # cv2.imshow("original", OriginalFrame)
+
                 # cv2.imshow("flipped", FlippedFrame)
 
                 if cv2.waitKey(5) & 0xFF == 27:
                     break
-
+        # result.release()
         extracted_path = f"../dataset/lsa64_raw/extracted/{vid}.csv"
         os.makedirs(os.path.dirname(extracted_path), exist_ok=True)
         with open(extracted_path, "w+", newline="") as f:
